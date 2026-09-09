@@ -442,6 +442,7 @@
           <span class="dot"></span> Tomar foto para escanear
         </button>
         <div class="scan-status" id="capture-status" style="margin-top:4px;"></div>
+        <div id="scan-error-detail" style="margin-top:10px; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-2); max-width:300px; line-height:1.5; word-break:break-word;"></div>
         <input type="file" accept="image/*" capture="environment" id="file-capture" style="display:none">
       </div>
     </div>
@@ -625,6 +626,9 @@ async function startScanner(){
   scanFallback.classList.remove('show');
   scanStatus.textContent = 'Alinea el código dentro del marco';
   try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error('getUserMedia no existe en este navegador/WebView');
+    }
     stream = await navigator.mediaDevices.getUserMedia({
       video:{ facingMode:{ ideal:'environment' } },
       audio:false
@@ -634,6 +638,13 @@ async function startScanner(){
     scanning = true;
     tickScan();
   }catch(err){
+    console.error('Error de cámara:', err);
+    const detailEl = document.getElementById('scan-error-detail');
+    if(detailEl){
+      detailEl.textContent = 'Detalle técnico: ' + (err && err.name ? err.name : 'desconocido') +
+        (err && err.message ? (' — ' + err.message) : '') +
+        ' · Protocolo: ' + location.protocol + ' · Host: ' + location.hostname;
+    }
     scanFallback.classList.add('show');
   }
 }
