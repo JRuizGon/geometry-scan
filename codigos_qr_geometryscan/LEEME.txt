@@ -1,8 +1,8 @@
-Geometry AR — Códigos QR de escaneo
+Geometry Scan — Códigos QR de escaneo
 ------------------------------------
 Cada imagen corresponde a una figura de la colección.
 Ábrelas en una pantalla (o imprímelas) y apunta la cámara
-de la app "index.html" hacia ellas para activar el modelo 3D.
+de la app "geometry-scan.html" hacia ellas para activar el modelo 3D.
 
 Figuras incluidas:
 - PRISMA.png
