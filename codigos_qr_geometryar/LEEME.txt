@@ -1,0 +1,17 @@
+Geometry AR — Códigos QR de escaneo
+------------------------------------
+Cada imagen corresponde a una figura de la colección.
+Ábrelas en una pantalla (o imprímelas) y apunta la cámara
+de la app "index.html" hacia ellas para activar el modelo 3D.
+
+Figuras incluidas:
+- PRISMA.png
+- CUBO.png
+- PIRAMIDE.png
+- ESFERA.png
+- TETRAEDRO.png
+- CILINDRO.png
+- CONO.png
+- OCTAEDRO.png
+- DODECAEDRO.png
+- ICOSAEDRO.png

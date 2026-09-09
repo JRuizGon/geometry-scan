@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Geometry Scan — Escáner de sólidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#080B16;
+    --bg-1:#0E1327;
+    --bg-2:#141A33;
+    --line:#2A3357;
+    --line-soft:#1C2340;
+    --text-0:#EEF1FA;
+    --text-1:#AEB6D6;
+    --text-2:#6E7699;
+    --teal:#4FE8C7;
+    --teal-dim:#2C7A6C;
+    --violet:#8B7CFF;
+    --violet-dim:#4A3F8F;
+    --danger:#FF6B6B;
+    --radius:2px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    height:100%;
+    background:var(--bg-0);
+    color:var(--text-0);
+    font-family:'IBM Plex Sans', sans-serif;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #app{position:relative; width:100vw; height:100vh; height:100dvh;}
+
+  .bg-grid{
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 42px 42px;
+    opacity:.35;
+    pointer-events:none;
+  }
+  .bg-glow{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 400px at 15% 10%, rgba(139,124,255,.14), transparent 60%),
+      radial-gradient(700px 500px at 90% 85%, rgba(79,232,199,.10), transparent 60%);
+    pointer-events:none;
+  }
+
+  .screen{
+    position:absolute; inset:0;
+    display:none;
+    flex-direction:column;
+    animation: fadeIn .35s ease;
+  }
+  .screen.active{display:flex;}
+  @keyframes fadeIn{from{opacity:0} to{opacity:1}}
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 26px 14px 26px;
+    z-index:5;
+  }
+  .brand{
+    display:flex; align-items:center; gap:12px;
+  }
+  .brand-mark{
+    width:30px; height:30px;
+    position:relative;
+  }
+  .brand-mark svg{width:100%; height:100%; display:block;}
+  .brand-name{
+    font-family:'Sora', sans-serif;
+    font-weight:700;
+    font-size:17px;
+    letter-spacing:.2px;
+  }
+  .brand-name span{color:var(--teal);}
+  .badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--text-2);
+    border:1px solid var(--line);
+    padding:5px 9px;
+    border-radius:var(--radius);
+  }
+
+  /* ---------- HOME ---------- */
+  #screen-home{ z-index:2; }
+  .home-scroll{
+    flex:1; overflow-y:auto; padding: 6px 26px 40px 26px;
+  }
+  .hero{
+    margin-top:18px;
+    padding:26px 24px;
+    border:1px solid var(--line);
+    background:linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    position:relative;
+    overflow:hidden;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+  }
+  .hero::before{
+    content:"";
+    position:absolute; top:0; right:0; width:160px; height:160px;
+    background: conic-gradient(from 220deg, rgba(79,232,199,.25), transparent 40%);
+    filter: blur(10px);
+    pointer-events:none;
+  }
+  .hero-title{
+    font-family:'Sora', sans-serif;
+    font-weight:800;
+    font-size:clamp(26px, 6vw, 34px);
+    line-height:1.08;
+    max-width:340px;
+    position:relative;
+  }
+  .hero-sub{
+    margin-top:12px;
+    color:var(--text-1);
+    font-size:14.5px;
+    line-height:1.55;
+    max-width:380px;
+    position:relative;
+  }
+  .scan-btn{
+    margin-top:22px;
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    background:var(--teal);
+    color:#04120E;
+    border:none;
+    font-family:'Sora', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    padding:14px 20px;
+    cursor:pointer;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+    transition: transform .15s ease, box-shadow .15s ease;
+    position:relative;
+  }
+  .scan-btn:active{transform:scale(.97);}
+  .scan-btn .dot{
+    width:9px; height:9px; border-radius:50%;
+    background:#04120E;
+    animation: pulse 1.4s infinite ease-in-out;
+  }
+  @keyframes pulse{0%,100%{opacity:.35} 50%{opacity:1}}
+
+  .section-row{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:30px 0 14px 0;
+  }
+  .section-title{
+    font-family:'Sora', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    color:var(--text-0);
+  }
+  .section-hint{
+    font-size:12.5px;
+    color:var(--text-2);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:10px;
+  }
+  @media (min-width:520px){ .grid{grid-template-columns:repeat(3, 1fr);} }
+
+  .fig-card{
+    border:1px solid var(--line);
+    background:var(--bg-1);
+    padding:16px 14px;
+    cursor:pointer;
+    display:flex; flex-direction:column; gap:14px;
+    transition: border-color .15s ease, background .15s ease;
+    position:relative;
+  }
+  .fig-card:hover{ border-color:var(--teal-dim); background:var(--bg-2); }
+  .fig-card .ico{
+    width:34px; height:34px;
+    color:var(--violet);
+  }
+  .fig-card .ico svg{width:100%;height:100%;}
+  .fig-card .name{
+    font-family:'Sora', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+  }
+  .fig-card .kind{
+    font-size:11.5px;
+    color:var(--text-2);
+  }
+
+  /* ---------- SCANNER ---------- */
+  #screen-scan{ z-index:10; background:#000; }
+  .scan-video-wrap{
+    position:relative; flex:1; overflow:hidden; background:#000;
+  }
+  #video{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    transform:scaleX(1);
+  }
+  .scan-overlay{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  .reticle{
+    width:min(64vw, 260px); height:min(64vw,260px);
+    position:relative;
+  }
+  .reticle i{
+    position:absolute; width:34px; height:34px;
+    border-color:var(--teal);
+    border-style:solid; border-width:0;
+  }
+  .reticle i:nth-child(1){top:0;left:0;border-top-width:3px;border-left-width:3px;}
+  .reticle i:nth-child(2){top:0;right:0;border-top-width:3px;border-right-width:3px;}
+  .reticle i:nth-child(3){bottom:0;left:0;border-bottom-width:3px;border-left-width:3px;}
+  .reticle i:nth-child(4){bottom:0;right:0;border-bottom-width:3px;border-right-width:3px;}
+  .scan-line{
+    position:absolute; left:6%; right:6%; height:2px;
+    background:linear-gradient(90deg, transparent, var(--teal), transparent);
+    box-shadow:0 0 12px 1px var(--teal);
+    animation: sweep 2.1s ease-in-out infinite;
+  }
+  @keyframes sweep{
+    0%{top:6%} 50%{top:94%} 100%{top:6%}
+  }
+  .scan-footer{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:18px 22px 26px 22px;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.75) 40%);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .scan-status{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.4px;
+    color:var(--teal);
+    min-height:16px;
+  }
+  .icon-btn{
+    width:46px; height:46px;
+    border:1px solid var(--line);
+    background:rgba(20,26,51,.75);
+    color:var(--text-0);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn svg{width:20px;height:20px;}
+  .scan-topbar{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:20px;
+    z-index:2;
+  }
+  .scan-fallback{
+    position:absolute; inset:0;
+    display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:30px; text-align:center;
+    background:var(--bg-0);
+  }
+  .scan-fallback.show{display:flex;}
+  .scan-fallback p{color:var(--text-1); font-size:13.5px; max-width:280px; line-height:1.5;}
+
+  /* ---------- VIEWER ---------- */
+  #screen-viewer{ z-index:20; }
+  .viewer-canvas-wrap{
+    position:relative; flex:1; min-height:0;
+  }
+  #three-canvas{ position:absolute; inset:0; display:block; width:100%; height:100%; touch-action:none; }
+  .viewer-tag{
+    position:absolute; top:16px; left:20px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:var(--teal);
+    border:1px solid var(--teal-dim);
+    padding:4px 9px;
+    background:rgba(8,11,22,.6);
+  }
+  .viewer-hint{
+    position:absolute; bottom:14px; left:0; right:0;
+    text-align:center; font-size:11.5px; color:var(--text-2);
+  }
+
+  .info-panel{
+    background:var(--bg-1);
+    border-top:1px solid var(--line);
+    padding:20px 24px 26px 24px;
+    max-height:46vh;
+    overflow-y:auto;
+  }
+  .info-head{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:14px;
+  }
+  .info-kind{
+    font-size:11.5px; color:var(--violet); margin-bottom:4px;
+  }
+  .info-title{
+    font-family:'Sora', sans-serif;
+    font-weight:700;
+    font-size:22px;
+  }
+  .info-desc{
+    margin-top:10px;
+    color:var(--text-1);
+    font-size:13.5px;
+    line-height:1.6;
+    max-width:62ch;
+  }
+  .stat-grid{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+  }
+  .stat{
+    background:var(--bg-1);
+    padding:12px 10px;
+  }
+  .stat .v{
+    font-family:'Sora', sans-serif;
+    font-weight:700; font-size:17px; color:var(--teal);
+  }
+  .stat .l{
+    margin-top:3px; font-size:10.5px; color:var(--text-2);
+  }
+  .formula-row{
+    margin-top:16px;
+    display:flex; flex-wrap:wrap; gap:10px;
+  }
+  .formula{
+    border:1px solid var(--line);
+    padding:9px 12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--text-0);
+    background:var(--bg-2);
+  }
+  .formula small{display:block; font-family:'IBM Plex Sans',sans-serif; color:var(--text-2); font-size:10px; margin-bottom:4px;}
+  .fact{
+    margin-top:16px;
+    padding:12px 14px;
+    border-left:2px solid var(--violet);
+    background:var(--bg-2);
+    font-size:12.5px;
+    color:var(--text-1);
+    line-height:1.55;
+  }
+  .close-btn{
+    width:34px; height:34px;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--text-1);
+    cursor:pointer;
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); }
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- ============ HOME ============ -->
+  <section id="screen-home" class="screen active">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 40 40" fill="none">
+            <polygon points="20,3 36,12 36,28 20,37 4,28 4,12" stroke="#4FE8C7" stroke-width="1.6"/>
+            <polygon points="20,3 36,12 20,20 4,12" stroke="#8B7CFF" stroke-width="1.2" fill="none"/>
+            <line x1="20" y1="20" x2="20" y2="37" stroke="#8B7CFF" stroke-width="1.2"/>
+          </svg>
+        </div>
+        <div class="brand-name">Geometry<span>Scan</span></div>
+      </div>
+      <div class="badge">v1.0 · local</div>
+    </div>
+
+    <div class="home-scroll">
+      <div class="hero">
+        <div class="hero-title">Escanea un código y observa el sólido tomar forma.</div>
+        <div class="hero-sub">Apunta la cámara a cualquiera de los diez códigos de la colección. Cada uno abre un modelo 3D interactivo con sus datos geométricos.</div>
+        <button class="scan-btn" id="btn-open-scan">
+          <span class="dot"></span> Iniciar escaneo
+        </button>
+      </div>
+
+      <div class="section-row">
+        <div class="section-title">Colección de figuras</div>
+        <div class="section-hint" id="count-hint">10 sólidos</div>
+      </div>
+      <div class="grid" id="figure-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============ SCANNER ============ -->
+  <section id="screen-scan" class="screen">
+    <div class="scan-video-wrap">
+      <video id="video" playsinline autoplay muted></video>
+      <div class="scan-overlay">
+        <div class="reticle">
+          <i></i><i></i><i></i><i></i>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scan-topbar">
+        <button class="icon-btn" id="btn-close-scan" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="badge">Buscando código QR</div>
+      </div>
+      <div class="scan-footer">
+        <div class="scan-status" id="scan-status">Alinea el código dentro del marco</div>
+      </div>
+      <div class="scan-fallback" id="scan-fallback">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        <div class="brand-name">No se pudo abrir la cámara en vivo</div>
+        <p>Esto suele pasar dentro de apps empaquetadas (APK). Usa este botón para tomar una foto del código y la app la analizará igual.</p>
+        <button class="scan-btn" id="btn-capture-photo" type="button">
+          <span class="dot"></span> Tomar foto para escanear
+        </button>
+        <div class="scan-status" id="capture-status" style="margin-top:4px;"></div>
+        <input type="file" accept="image/*" capture="environment" id="file-capture" style="display:none">
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VIEWER ============ -->
+  <section id="screen-viewer" class="screen">
+    <div class="viewer-canvas-wrap">
+      <canvas id="three-canvas"></canvas>
+      <div class="viewer-tag" id="viewer-code">GEOSCAN::--</div>
+      <div class="viewer-hint">Arrastra para rotar</div>
+    </div>
+    <div class="info-panel">
+      <div class="info-head">
+        <div>
+          <div class="info-kind" id="info-kind">Poliedro</div>
+          <div class="info-title" id="info-title">Figura</div>
+        </div>
+        <button class="close-btn" id="btn-close-viewer" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="info-desc" id="info-desc"></div>
+      <div class="stat-grid" id="info-stats"></div>
+      <div class="formula-row" id="info-formulas"></div>
+      <div class="fact" id="info-fact"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script>
+/* ======================================================================
+   DATOS DE LAS FIGURAS
+====================================================================== */
+const FIGURES = {
+  PRISMA: {
+    code:"PRISMA", name:"Prisma", kind:"Poliedro",
+    desc:"Cuerpo formado por dos bases triangulares paralelas e iguales, unidas por tres caras rectangulares laterales.",
+    stats:[["Caras","5"],["Vértices","6"],["Aristas","9"]],
+    formulas:[["Volumen","V = Ab × h"],["Área total","A = 2·Ab + Al"]],
+    fact:"Un prisma triangular separa la luz blanca en su espectro de colores, tal como lo hizo Newton en sus experimentos de óptica.",
+    geo:"prism"
+  },
+  CUBO: {
+    code:"CUBO", name:"Cubo", kind:"Poliedro regular",
+    desc:"Hexaedro regular: seis caras cuadradas iguales, todas sus aristas miden lo mismo y sus ángulos son rectos.",
+    stats:[["Caras","6"],["Vértices","8"],["Aristas","12"]],
+    formulas:[["Volumen","V = a³"],["Área total","A = 6a²"]],
+    fact:"Es el único poliedro regular capaz de rellenar el espacio por sí solo, sin dejar huecos entre copias.",
+    geo:"cube"
+  },
+  PIRAMIDE: {
+    code:"PIRAMIDE", name:"Pirámide", kind:"Poliedro",
+    desc:"Sólido con una base poligonal (en este caso cuadrada) y caras triangulares que convergen en un único vértice superior, el ápice.",
+    stats:[["Caras","5"],["Vértices","5"],["Aristas","8"]],
+    formulas:[["Volumen","V = ⅓·Ab·h"],["Área lateral","A = ½·P·ap"]],
+    fact:"Las pirámides de Guiza mantienen bases casi perfectamente cuadradas, con un error de apenas centímetros en más de 230 metros de lado.",
+    geo:"pyramid"
+  },
+  ESFERA: {
+    code:"ESFERA", name:"Esfera", kind:"Cuerpo redondo",
+    desc:"Superficie cuyos puntos equidistan de un centro. No tiene aristas ni vértices: es completamente curva.",
+    stats:[["Caras","0"],["Vértices","0"],["Aristas","0"]],
+    formulas:[["Volumen","V = 4/3·π·r³"],["Área","A = 4·π·r²"]],
+    fact:"De todas las formas con el mismo volumen, la esfera es la que tiene la menor superficie posible: por eso las gotas de agua tienden a ser esféricas.",
+    geo:"sphere"
+  },
+  TETRAEDRO: {
+    code:"TETRAEDRO", name:"Tetraedro", kind:"Poliedro regular",
+    desc:"El más simple de los sólidos platónicos: cuatro caras triangulares equiláteras, cuatro vértices y seis aristas.",
+    stats:[["Caras","4"],["Vértices","4"],["Aristas","6"]],
+    formulas:[["Volumen","V = a³ / (6√2)"],["Área total","A = √3·a²"]],
+    fact:"Es el único poliedro regular en el que cada vértice es opuesto a una cara, en vez de a otro vértice o arista.",
+    geo:"tetra"
+  },
+  CILINDRO: {
+    code:"CILINDRO", name:"Cilindro", kind:"Cuerpo redondo",
+    desc:"Dos bases circulares paralelas conectadas por una superficie lateral curva de altura constante.",
+    stats:[["Caras","3"],["Vértices","0"],["Aristas","2"]],
+    formulas:[["Volumen","V = π·r²·h"],["Área total","A = 2πr(r+h)"]],
+    fact:"Las latas de bebida son cilíndricas porque esa forma resiste mejor la presión interna usando la menor cantidad de material.",
+    geo:"cylinder"
+  },
+  CONO: {
+    code:"CONO", name:"Cono", kind:"Cuerpo redondo",
+    desc:"Base circular que se estrecha suavemente hasta un único punto llamado vértice o ápice.",
+    stats:[["Caras","2"],["Vértices","1"],["Aristas","1"]],
+    formulas:[["Volumen","V = ⅓·π·r²·h"],["Área total","A = πr(r+g)"]],
+    fact:"Un cono tiene exactamente un tercio del volumen de un cilindro con la misma base y altura.",
+    geo:"cone"
+  },
+  OCTAEDRO: {
+    code:"OCTAEDRO", name:"Octaedro", kind:"Poliedro regular",
+    desc:"Ocho caras triangulares equiláteras que se encuentran cuatro a cuatro en cada uno de sus seis vértices.",
+    stats:[["Caras","8"],["Vértices","6"],["Aristas","12"]],
+    formulas:[["Volumen","V = (√2/3)·a³"],["Área total","A = 2√3·a²"]],
+    fact:"Puede construirse uniendo dos pirámides de base cuadrada por su base, y es la forma natural de muchos cristales de diamante.",
+    geo:"octa"
+  },
+  DODECAEDRO: {
+    code:"DODECAEDRO", name:"Dodecaedro", kind:"Poliedro regular",
+    desc:"Doce caras pentagonales regulares que se reúnen de tres en tres en cada uno de sus veinte vértices.",
+    stats:[["Caras","12"],["Vértices","20"],["Aristas","30"]],
+    formulas:[["Volumen","V ≈ 7.66·a³"],["Área total","A = 3√(25+10√5)·a²"]],
+    fact:"Platón lo asoció con el éter, el elemento con el que creía que estaba compuesto el universo entero.",
+    geo:"dodeca"
+  },
+  ICOSAEDRO: {
+    code:"ICOSAEDRO", name:"Icosaedro", kind:"Poliedro regular",
+    desc:"Veinte caras triangulares equiláteras que confluyen de cinco en cinco en cada uno de sus doce vértices.",
+    stats:[["Caras","20"],["Vértices","12"],["Aristas","30"]],
+    formulas:[["Volumen","V ≈ 2.18·a³"],["Área total","A = 5√3·a²"]],
+    fact:"Es la forma que más se aproxima a una esfera entre los cinco sólidos platónicos, por eso se usa en dados de veinte caras.",
+    geo:"icosa"
+  }
+};
+
+/* ======================================================================
+   NAVEGACIÓN ENTRE PANTALLAS
+====================================================================== */
+const screens = {
+  home: document.getElementById('screen-home'),
+  scan: document.getElementById('screen-scan'),
+  viewer: document.getElementById('screen-viewer'),
+};
+function showScreen(name){
+  Object.values(screens).forEach(s=>s.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+
+/* ======================================================================
+   ICONOS SVG SIMPLES PARA LA GRILLA DE INICIO
+====================================================================== */
+const ICONS = {
+  prism: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 28L20 34L36 28L20 22Z"/><path d="M4 28V14L20 8V22"/><path d="M36 28V14L20 8"/></svg>',
+  cube: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 12L20 6L32 12V28L20 34L8 28Z"/><path d="M8 12L20 18L32 12"/><path d="M20 18V34"/></svg>',
+  pyramid: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M20 5L36 30H4Z"/><path d="M20 5L20 30"/><path d="M4 30L20 22L36 30"/></svg>',
+  sphere: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="20" cy="20" r="14"/><ellipse cx="20" cy="20" rx="14" ry="5"/></svg>',
+  tetra: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M20 6L34 30H6Z"/><path d="M20 6L20 24"/><path d="M6 30L20 24L34 30"/></svg>',
+  cylinder: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="20" cy="10" rx="13" ry="5"/><path d="M7 10V28"/><path d="M33 10V28"/><ellipse cx="20" cy="28" rx="13" ry="5"/></svg>',
+  cone: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="20" cy="30" rx="13" ry="5"/><path d="M20 6L7 30"/><path d="M20 6L33 30"/></svg>',
+  octa: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M20 4L34 20L20 36L6 20Z"/><path d="M6 20L20 12L34 20"/><path d="M20 12V36"/></svg>',
+  dodeca: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><polygon points="20,4 33,13 28,29 12,29 7,13"/><polygon points="20,12 26,17 24,24 16,24 14,17"/></svg>',
+  icosa: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4"><polygon points="20,3 36,14 30,33 10,33 4,14"/><path d="M20 3L20 18M4 14L20 18M36 14L20 18M10 33L20 18M30 33L20 18"/></svg>'
+};
+
+/* ======================================================================
+   POBLAR GRILLA DE INICIO
+====================================================================== */
+const grid = document.getElementById('figure-grid');
+Object.values(FIGURES).forEach(fig=>{
+  const card = document.createElement('div');
+  card.className = 'fig-card';
+  card.innerHTML = `
+    <div class="ico">${ICONS[fig.geo]}</div>
+    <div>
+      <div class="name">${fig.name}</div>
+      <div class="kind">${fig.kind}</div>
+    </div>
+  `;
+  card.addEventListener('click', ()=> openViewer(fig.code));
+  grid.appendChild(card);
+});
+
+/* ======================================================================
+   ESCÁNER DE CÓDIGOS QR
+====================================================================== */
+const video = document.getElementById('video');
+const scanStatus = document.getElementById('scan-status');
+const scanFallback = document.getElementById('scan-fallback');
+let stream = null;
+let scanCanvas = document.createElement('canvas');
+let scanCtx = scanCanvas.getContext('2d', { willReadFrequently:true });
+let scanning = false;
+let rafId = null;
+let lastHit = 0;
+
+async function startScanner(){
+  scanFallback.classList.remove('show');
+  scanStatus.textContent = 'Alinea el código dentro del marco';
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ ideal:'environment' } },
+      audio:false
+    });
+    video.srcObject = stream;
+    await video.play();
+    scanning = true;
+    tickScan();
+  }catch(err){
+    scanFallback.classList.add('show');
+  }
+}
+function stopScanner(){
+  scanning = false;
+  if(rafId) cancelAnimationFrame(rafId);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+}
+function tickScan(){
+  if(!scanning) return;
+  if(video.readyState === video.HAVE_ENOUGH_DATA){
+    scanCanvas.width = video.videoWidth;
+    scanCanvas.height = video.videoHeight;
+    scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+    const imgData = scanCtx.getImageData(0,0,scanCanvas.width, scanCanvas.height);
+    const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts:'dontInvert' });
+    if(code && code.data){
+      handleScanResult(code.data);
+    }
+  }
+  rafId = requestAnimationFrame(tickScan);
+}
+function handleScanResult(raw, statusEl){
+  const target = statusEl || scanStatus;
+  const now = Date.now();
+  if(now - lastHit < 1200) return; // evita relecturas repetidas del mismo cuadro
+  const match = raw.trim().toUpperCase().match(/GEOSCAN::([A-Z]+)/);
+  const key = match ? match[1] : raw.trim().toUpperCase();
+  if(FIGURES[key]){
+    lastHit = now;
+    target.textContent = 'Código reconocido: ' + FIGURES[key].name;
+    stopScanner();
+    setTimeout(()=> openViewer(key), 260);
+  }else{
+    target.textContent = 'Código no reconocido';
+  }
+}
+
+document.getElementById('btn-open-scan').addEventListener('click', ()=>{
+  showScreen('scan');
+  startScanner();
+});
+document.getElementById('btn-close-scan').addEventListener('click', ()=>{
+  stopScanner();
+  showScreen('home');
+});
+
+/* Modo de respaldo: tomar una foto y decodificar el QR de esa imagen.
+   Funciona incluso en WebViews empaquetados que no permiten video en vivo. */
+const captureStatus = document.getElementById('capture-status');
+const fileCapture = document.getElementById('file-capture');
+document.getElementById('btn-capture-photo').addEventListener('click', ()=>{
+  fileCapture.click();
+});
+fileCapture.addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  captureStatus.textContent = 'Analizando foto...';
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = ()=>{
+    scanCanvas.width = img.naturalWidth;
+    scanCanvas.height = img.naturalHeight;
+    scanCtx.drawImage(img, 0, 0, scanCanvas.width, scanCanvas.height);
+    const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+    const code = jsQR(imgData.data, imgData.width, imgData.height);
+    if(code && code.data){
+      handleScanResult(code.data, captureStatus);
+    }else{
+      captureStatus.textContent = 'No se detectó ningún código en la foto. Acércate más y evita reflejos.';
+    }
+    URL.revokeObjectURL(objectUrl);
+  };
+  img.onerror = ()=>{
+    captureStatus.textContent = 'No se pudo leer la foto. Intenta de nuevo.';
+    URL.revokeObjectURL(objectUrl);
+  };
+  img.src = objectUrl;
+  e.target.value = '';
+});
+
+/* ======================================================================
+   VISOR 3D (Three.js)
+====================================================================== */
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const scene = new THREE.Scene();
+const camera3d = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera3d.position.set(0, 1.6, 5.2);
+
+const keyLight = new THREE.DirectionalLight(0x9fb8ff, 1.1);
+keyLight.position.set(3,4,5);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x8b7cff, 0.5);
+fillLight.position.set(-4,-2,-3);
+scene.add(fillLight);
+scene.add(new THREE.AmbientLight(0x404060, 0.9));
+
+let currentMesh = null;
+let currentWire = null;
+let rotY = 0.4, rotX = -0.25;
+let dragging = false, lastX=0, lastY=0;
+let autoRotate = true;
+
+function buildGeometry(geoName){
+  switch(geoName){
+    case 'cube': return new THREE.BoxGeometry(1.6,1.6,1.6);
+    case 'sphere': return new THREE.SphereGeometry(1.15, 40, 28);
+    case 'tetra': return new THREE.TetrahedronGeometry(1.5);
+    case 'octa': return new THREE.OctahedronGeometry(1.35);
+    case 'dodeca': return new THREE.DodecahedronGeometry(1.25);
+    case 'icosa': return new THREE.IcosahedronGeometry(1.3);
+    case 'cylinder': return new THREE.CylinderGeometry(0.9,0.9,1.8,40);
+    case 'cone': return new THREE.ConeGeometry(1.05,1.9,40);
+    case 'pyramid': return new THREE.ConeGeometry(1.25,1.8,4,1);
+    case 'prism': return new THREE.CylinderGeometry(1.05,1.05,1.7,3);
+    default: return new THREE.BoxGeometry(1,1,1);
+  }
+}
+
+function loadFigureInto3D(geoName){
+  if(currentMesh){ scene.remove(currentMesh); currentMesh.geometry.dispose(); currentMesh.material.dispose(); }
+  if(currentWire){ scene.remove(currentWire); currentWire.geometry.dispose(); currentWire.material.dispose(); }
+
+  const geometry = buildGeometry(geoName);
+  if(geoName === 'pyramid'){ geometry.rotateY(Math.PI/4); }
+
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x1c2b52,
+    metalness:0.35,
+    roughness:0.35,
+    emissive: 0x123634,
+    emissiveIntensity:0.25,
+    flatShading:true,
+  });
+  currentMesh = new THREE.Mesh(geometry, material);
+  scene.add(currentMesh);
+
+  const edges = new THREE.EdgesGeometry(geometry);
+  const wireMat = new THREE.LineBasicMaterial({ color:0x4fe8c7, transparent:true, opacity:0.85 });
+  currentWire = new THREE.LineSegments(edges, wireMat);
+  currentMesh.add(currentWire);
+
+  rotX = -0.25; rotY = 0.4;
+}
+
+function resizeRenderer(){
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera3d.aspect = w / Math.max(h,1);
+  camera3d.updateProjectionMatrix();
+}
+window.addEventListener('resize', resizeRenderer);
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(currentMesh){
+    if(autoRotate && !dragging){ rotY += 0.006; }
+    currentMesh.rotation.y = rotY;
+    currentMesh.rotation.x = rotX;
+  }
+  renderer.render(scene, camera3d);
+}
+animate();
+
+/* Interacción de arrastre para rotar manualmente */
+function onPointerDown(x,y){ dragging = true; lastX = x; lastY = y; autoRotate = false; }
+function onPointerMove(x,y){
+  if(!dragging) return;
+  const dx = x - lastX, dy = y - lastY;
+  rotY += dx * 0.008;
+  rotX += dy * 0.008;
+  rotX = Math.max(-1.2, Math.min(1.2, rotX));
+  lastX = x; lastY = y;
+}
+function onPointerUp(){ dragging = false; }
+
+canvas.addEventListener('mousedown', e=>onPointerDown(e.clientX,e.clientY));
+window.addEventListener('mousemove', e=>onPointerMove(e.clientX,e.clientY));
+window.addEventListener('mouseup', onPointerUp);
+canvas.addEventListener('touchstart', e=>{ const t=e.touches[0]; onPointerDown(t.clientX,t.clientY); }, {passive:true});
+canvas.addEventListener('touchmove', e=>{ const t=e.touches[0]; onPointerMove(t.clientX,t.clientY); }, {passive:true});
+canvas.addEventListener('touchend', onPointerUp);
+
+/* ======================================================================
+   ABRIR VISOR CON INFORMACIÓN DE LA FIGURA
+====================================================================== */
+function openViewer(code){
+  const fig = FIGURES[code];
+  if(!fig) return;
+
+  document.getElementById('viewer-code').textContent = 'GEOSCAN::' + fig.code;
+  document.getElementById('info-kind').textContent = fig.kind;
+  document.getElementById('info-title').textContent = fig.name;
+  document.getElementById('info-desc').textContent = fig.desc;
+
+  const statsEl = document.getElementById('info-stats');
+  statsEl.innerHTML = fig.stats.map(([l,v])=>`<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+
+  const formulasEl = document.getElementById('info-formulas');
+  formulasEl.innerHTML = fig.formulas.map(([label,f])=>`<div class="formula"><small>${label}</small>${f}</div>`).join('');
+
+  document.getElementById('info-fact').textContent = fig.fact;
+
+  showScreen('viewer');
+  requestAnimationFrame(()=>{
+    resizeRenderer();
+    loadFigureInto3D(fig.geo);
+  });
+}
+
+document.getElementById('btn-close-viewer').addEventListener('click', ()=>{
+  showScreen('home');
+});
+
+/* Ajuste inicial de tamaño del canvas */
+window.addEventListener('load', resizeRenderer);
+</script>
+</body>
+</html>
