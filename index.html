@@ -474,7 +474,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
 /* ======================================================================
    DATOS DE LAS FIGURAS
@@ -656,6 +656,11 @@ function stopScanner(){
 function tickScan(){
   if(!scanning) return;
   if(video.readyState === video.HAVE_ENOUGH_DATA){
+    if(typeof jsQR !== 'function'){
+      scanStatus.textContent = 'No se pudo cargar el lector de códigos (revisa tu conexión a internet)';
+      scanning = false;
+      return;
+    }
     scanCanvas.width = video.videoWidth;
     scanCanvas.height = video.videoHeight;
     scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
@@ -706,6 +711,11 @@ fileCapture.addEventListener('change', (e)=>{
   const img = new Image();
   const objectUrl = URL.createObjectURL(file);
   img.onload = ()=>{
+    if(typeof jsQR !== 'function'){
+      captureStatus.textContent = 'No se pudo cargar el lector de códigos (revisa tu conexión a internet)';
+      URL.revokeObjectURL(objectUrl);
+      return;
+    }
     scanCanvas.width = img.naturalWidth;
     scanCanvas.height = img.naturalHeight;
     scanCtx.drawImage(img, 0, 0, scanCanvas.width, scanCanvas.height);
