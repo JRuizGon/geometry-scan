@@ -676,8 +676,9 @@ function handleScanResult(raw, statusEl){
   const target = statusEl || scanStatus;
   const now = Date.now();
   if(now - lastHit < 1200) return; // evita relecturas repetidas del mismo cuadro
-  const match = raw.trim().toUpperCase().match(/GEOSCAN::([A-Z]+)/);
-  const key = match ? match[1] : raw.trim().toUpperCase();
+  const cleaned = raw.trim().toUpperCase();
+  const match = cleaned.match(/([A-Z]+)$/); // toma el nombre de la figura sin importar el prefijo usado (GEOSCAN::, GEOAR::, etc.)
+  const key = match ? match[1] : cleaned;
   if(FIGURES[key]){
     lastHit = now;
     target.textContent = 'Código reconocido: ' + FIGURES[key].name;
@@ -744,8 +745,20 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true })
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const scene = new THREE.Scene();
-const camera3d = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera3d.position.set(0, 1.6, 5.2);
+const CAMERA_FOV = 45;
+const TARGET_RADIUS = 2.1; // radio que garantiza que la figura más grande siempre entre en cuadro
+const camera3d = new THREE.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 100);
+
+function fitCameraToAspect(aspect){
+  const vFovRad = THREE.MathUtils.degToRad(CAMERA_FOV);
+  const distForHeight = TARGET_RADIUS / Math.tan(vFovRad / 2);
+  const distForWidth = TARGET_RADIUS / (Math.tan(vFovRad / 2) * aspect);
+  const dist = Math.max(distForHeight, distForWidth) * 1.18; // margen extra
+  const elevAngle = THREE.MathUtils.degToRad(16);
+  camera3d.position.set(0, dist * Math.sin(elevAngle), dist * Math.cos(elevAngle));
+  camera3d.lookAt(0, 0, 0);
+}
+fitCameraToAspect(1); // valor inicial, se recalcula en el primer resize real
 
 const keyLight = new THREE.DirectionalLight(0x9fb8ff, 1.1);
 keyLight.position.set(3,4,5);
@@ -806,11 +819,25 @@ function loadFigureInto3D(geoName){
 function resizeRenderer(){
   const wrap = canvas.parentElement;
   const w = wrap.clientWidth, h = wrap.clientHeight;
+  if(w === 0 || h === 0) return; // el contenedor aún no tiene tamaño real; se reintenta después
   renderer.setSize(w, h, false);
-  camera3d.aspect = w / Math.max(h,1);
+  const aspect = w / h;
+  camera3d.aspect = aspect;
+  fitCameraToAspect(aspect);
   camera3d.updateProjectionMatrix();
 }
 window.addEventListener('resize', resizeRenderer);
+window.addEventListener('orientationchange', ()=> setTimeout(resizeRenderer, 200));
+
+function ensureRendererSized(attempts){
+  attempts = attempts || 0;
+  const wrap = canvas.parentElement;
+  if((wrap.clientWidth === 0 || wrap.clientHeight === 0) && attempts < 10){
+    requestAnimationFrame(()=> ensureRendererSized(attempts + 1));
+    return;
+  }
+  resizeRenderer();
+}
 
 function animate(){
   requestAnimationFrame(animate);
@@ -864,7 +891,7 @@ function openViewer(code){
 
   showScreen('viewer');
   requestAnimationFrame(()=>{
-    resizeRenderer();
+    ensureRendererSized();
     loadFigureInto3D(fig.geo);
   });
 }
@@ -874,7 +901,7 @@ document.getElementById('btn-close-viewer').addEventListener('click', ()=>{
 });
 
 /* Ajuste inicial de tamaño del canvas */
-window.addEventListener('load', resizeRenderer);
+window.addEventListener('load', ()=> ensureRendererSized());
 </script>
 </body>
 </html>
